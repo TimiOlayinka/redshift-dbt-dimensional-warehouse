@@ -1,0 +1,44 @@
+name: 'hnb_cx_pipeline'
+version: '1.0.0'
+config-version: 2
+
+profile: 'hnb_redshift'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  hnb_cx_pipeline:
+    rdl:
+      +materialized: view
+      +schema: rdl
+    odl:
+      +materialized: table
+      +schema: odl
+    adl:
+      +materialized: table
+      +schema: adl
+
+vars:
+  map_payment_methods:
+    - { id: 1, method: "Credit Card", fee_percentage: 1.5 }
+    - { id: 2, method: "PayPal", fee_percentage: 2.0 }
+    - { id: 3, method: "Apple Pay", fee_percentage: 1.0 }
+    - { id: 4, method: "Google Pay", fee_percentage: 1.0 }
+    - { id: 5, method: "Klarna", fee_percentage: 3.5 }
+
+  dim_product_category:
+    - { category_id: 100, category_name: "Dresses", parent_id: null }
+    - { category_id: 101, category_name: "Midi Dresses", parent_id: 100 }
+    - { category_id: 102, category_name: "Maxi Dresses", parent_id: 100 }
+    - { category_id: 200, category_name: "Shoes", parent_id: null }
+    - { category_id: 201, category_name: "Heels", parent_id: 200 }
+    - { category_id: 202, category_name: "Trainers", parent_id: 200 }
