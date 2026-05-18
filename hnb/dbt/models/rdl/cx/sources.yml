@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: cx_raw
+    schema: rdl
+    tables:
+      - name: rdl_smg_nps_postship
+      - name: rdl_smg_nps_visitview
+      - name: rdl_cx_tickets

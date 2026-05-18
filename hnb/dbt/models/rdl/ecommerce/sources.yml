@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: ecommerce_raw
+    schema: rdl
+    tables:
+      - name: rdl_basket_items
+      - name: rdl_basket_payments
