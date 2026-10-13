@@ -11,7 +11,7 @@
  * Commercial CX Attribution Mart
  * Links Customer Experience cohorts (Promoter / Passive / Detractor + Support CSAT recovery)
  * with downstream e-commerce repeat purchase velocity, Average Order Value (AOV), and
- * retained LTV across Vitality Retail Group brands. Powers the £6.4M ($5.7M) annual revenue uplift attribution model.
+ * retained LTV across Vitality Retail Group brands. Powers the £6.4M annual revenue uplift attribution model.
  */
 
 WITH customer_nps_cohorts AS (

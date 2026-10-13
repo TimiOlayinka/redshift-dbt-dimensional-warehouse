@@ -43,7 +43,7 @@ models:
     description: >
       Commercial CX-to-Revenue Attribution Mart (`adl.bi_cx_revenue_uplift_attribution`).
       Quantifies how shifting Detractors to Promoters and achieving First-Contact Resolution (FCR)
-      drives repeat purchase velocity, higher Average Order Value (AOV), and £6.4M ($5.7M) annual incremental revenue uplift.
+      drives repeat purchase velocity, higher Average Order Value (AOV), and £6.4M annual incremental revenue uplift.
     columns:
       - name: attribution_sk
         description: "Deterministic MD5 surrogate key for the cohort slice."
