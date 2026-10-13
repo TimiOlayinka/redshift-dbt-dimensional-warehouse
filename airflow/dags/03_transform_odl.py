@@ -9,10 +9,10 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.task_group import TaskGroup
 
-DBT_PROJECT_DIR = "/opt/airflow/dbt/hnb"
+DBT_PROJECT_DIR = "/opt/airflow/dbt/vitality"
 
 default_args = {
-    "owner": "hnb-analytics-engineering",
+    "owner": "vitality-analytics-engineering",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,

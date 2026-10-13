@@ -72,14 +72,14 @@ jobs:
           pip install "dbt-core==1.8.4" "dbt-redshift==1.8.1" "sqlfluff==3.1.0" "sqlfluff-templater-dbt==3.1.0"
 
       - name: Install dbt Packages & Validate Project Parsing
-        working-directory: hnb/dbt
+        working-directory: vitality/dbt
         run: |
           dbt deps --profiles-dir .
           dbt parse --profiles-dir . --target dev
 
       - name: Run dbt Slim CI (state:modified+) on Redshift Serverless
         if: vars.REDSHIFT_CI_ENABLED == 'true'
-        working-directory: hnb/dbt
+        working-directory: vitality/dbt
         env:
           DBT_TARGET: ci
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number || '0' }}

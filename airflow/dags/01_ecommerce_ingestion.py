@@ -10,7 +10,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import LambdaInvokeF
 from airflow.utils.task_group import TaskGroup
 
 default_args = {
-    "owner": "hnb-analytics-engineering",
+    "owner": "vitality-analytics-engineering",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
@@ -28,7 +28,7 @@ ECOMMERCE_LAMBDA_FUNCTIONS = [
 with DAG(
     dag_id="01_ecommerce_ingestion",
     default_args=default_args,
-    description="Invoke AWS Lambda generators for H&B E-Commerce Basket Items and Payments into S3",
+    description="Invoke AWS Lambda generators for Vitality E-Commerce Basket Items and Payments into S3",
     schedule="0 1 * * *",
     start_date=datetime(2026, 1, 1),
     catchup=False,

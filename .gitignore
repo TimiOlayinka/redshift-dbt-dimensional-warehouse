@@ -8,12 +8,12 @@ venv/
 .ruff_cache/
 
 # dbt Core
-hnb/dbt/target/
-hnb/dbt/dbt_packages/
-hnb/dbt/logs/
+vitality/dbt/target/
+vitality/dbt/dbt_packages/
+vitality/dbt/logs/
 
 # Lambda packaged artifacts
-hnb/dist/
+vitality/dist/
 
 # Terraform
 **/.terraform/*

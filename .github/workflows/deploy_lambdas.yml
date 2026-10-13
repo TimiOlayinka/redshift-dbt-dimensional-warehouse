@@ -4,15 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - "hnb/lambda/**"
-      - "hnb/scripts/build_zips.py"
-      - "hnb/terraform/**"
+      - "vitality/lambda/**"
+      - "vitality/scripts/build_zips.py"
+      - "vitality/terraform/**"
       - ".github/workflows/deploy_lambdas.yml"
   pull_request:
     paths:
-      - "hnb/lambda/**"
-      - "hnb/scripts/build_zips.py"
-      - "hnb/terraform/**"
+      - "vitality/lambda/**"
+      - "vitality/scripts/build_zips.py"
+      - "vitality/terraform/**"
 
 permissions:
   id-token: write
@@ -37,27 +37,27 @@ jobs:
           pip install boto3 ruff pytest
 
       - name: Lint Lambda Python Code with Ruff
-        run: ruff check hnb/lambda hnb/scripts/build_zips.py
+        run: ruff check vitality/lambda vitality/scripts/build_zips.py
 
       - name: Execute Dry-Run Smoke Tests for All 5 Generators
         env:
           DRY_RUN: "true"
-          S3_BUCKET: "hnb-data-lake-ci"
+          S3_BUCKET: "vitality-data-lake-ci"
         run: |
-          python hnb/lambda/cx_customer_support/main.py
-          python hnb/lambda/cx_nps_postship/main.py
-          python hnb/lambda/cx_nps_visitview/main.py
-          python hnb/lambda/ecommerce_basket_items/main.py
-          python hnb/lambda/ecommerce_basket_payments/main.py
+          python vitality/lambda/cx_customer_support/main.py
+          python vitality/lambda/cx_nps_postship/main.py
+          python vitality/lambda/cx_nps_visitview/main.py
+          python vitality/lambda/ecommerce_basket_items/main.py
+          python vitality/lambda/ecommerce_basket_payments/main.py
 
       - name: Package Deterministic Lambda Deployment ZIPs
-        run: python hnb/scripts/build_zips.py
+        run: python vitality/scripts/build_zips.py
 
       - name: Upload Packaged Lambda Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: hnb-lambda-deployment-zips
-          path: hnb/dist/*.zip
+          name: vitality-lambda-deployment-zips
+          path: vitality/dist/*.zip
           retention-days: 7
 
   terraform-validate:
@@ -71,8 +71,8 @@ jobs:
       - name: Download Lambda Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: hnb-lambda-deployment-zips
-          path: hnb/dist
+          name: vitality-lambda-deployment-zips
+          path: vitality/dist
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -80,11 +80,11 @@ jobs:
           terraform_version: "1.7.5"
 
       - name: Terraform Format Check
-        working-directory: hnb/terraform
+        working-directory: vitality/terraform
         run: terraform fmt -check
 
       - name: Terraform Init (Backend Disabled) & Validate
-        working-directory: hnb/terraform
+        working-directory: vitality/terraform
         run: |
           terraform init -backend=false
           terraform validate
@@ -101,8 +101,8 @@ jobs:
       - name: Download Lambda Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: hnb-lambda-deployment-zips
-          path: hnb/dist
+          name: vitality-lambda-deployment-zips
+          path: vitality/dist
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -116,5 +116,5 @@ jobs:
             echo "Deploying ${fn}.zip to AWS Lambda..."
             aws lambda update-function-code \
               --function-name "${fn}" \
-              --zip-file "fileb://hnb/dist/${fn}.zip"
+              --zip-file "fileb://vitality/dist/${fn}.zip"
           done

@@ -1,0 +1,105 @@
+name: 'vitality_cx_pipeline'
+version: '2.1.0'
+config-version: 2
+
+profile: 'vitality_redshift'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+on-run-start:
+  - "{{ log('Starting Vitality Enterprise CX & E-Commerce dbt execution on target: ' ~ target.name, info=True) }}"
+
+models:
+  vitality_cx_pipeline:
+    +persist_docs:
+      relation: true
+      columns: true
+    rdl:
+      +materialized: view
+      +schema: rdl
+      +tags: ["rdl", "staging", "hourly"]
+      cx:
+        +tags: ["cx"]
+      ecommerce:
+        +tags: ["ecommerce"]
+    odl:
+      +materialized: table
+      +schema: odl
+      +tags: ["odl", "kimball", "core"]
+      dim_cx:
+        +tags: ["cx", "dimension"]
+      fact_cx:
+        +tags: ["cx", "fact"]
+      ecommerce:
+        +tags: ["ecommerce"]
+    adl:
+      +materialized: table
+      +schema: adl
+      +tags: ["adl", "bi_mart", "executive"]
+      bi_cx:
+        +tags: ["cx", "attribution"]
+
+snapshots:
+  vitality_cx_pipeline:
+    +target_schema: odl_snapshots
+    +persist_docs:
+      relation: true
+      columns: true
+    +tags: ["snapshot", "scd2"]
+
+vars:
+  # Incremental lookback window (days) for late-arriving survey & support events
+  incremental_lookback_days: 3
+  sla_first_response_hours: 4.0
+  sla_resolution_hours: 24.0
+
+  supported_brands:
+    - "Vitality Retail"
+    - "Vitality International"
+    - "PureBotanics"
+    - "NutriCore Partner"
+    - "AromaVita"
+
+  map_payment_methods:
+    - { id: 1, method: "Credit Card", provider: "Adyen", fee_percentage: 1.45, is_bnpl: false }
+    - { id: 2, method: "PayPal", provider: "PayPal Enterprise", fee_percentage: 1.95, is_bnpl: false }
+    - { id: 3, method: "Apple Pay", provider: "Adyen Wallet", fee_percentage: 0.95, is_bnpl: false }
+    - { id: 4, method: "Google Pay", provider: "Adyen Wallet", fee_percentage: 0.95, is_bnpl: false }
+    - { id: 5, method: "Klarna", provider: "Klarna UK", fee_percentage: 3.25, is_bnpl: true }
+    - { id: 6, method: "Vitality Rewards Points", provider: "Internal Loyalty", fee_percentage: 0.00, is_bnpl: false }
+
+  dim_feedback_platforms:
+    - { platform_id: "PLAT-01", platform_code: "Web", channel_group: "Digital Web", vendor: "Service Management Group (SMG)", survey_mechanism: "Post-Purchase & Intercept" }
+    - { platform_id: "PLAT-02", platform_code: "App", channel_group: "Mobile App", vendor: "Service Management Group (SMG)", survey_mechanism: "In-App Native SDK" }
+    - { platform_id: "PLAT-03", platform_code: "Email", channel_group: "CRM Outbound", vendor: "Zendesk / Braze", survey_mechanism: "Transactional CSAT Link" }
+    - { platform_id: "PLAT-04", platform_code: "Chat", channel_group: "Conversational AI", vendor: "Zendesk Messaging", survey_mechanism: "Post-Chat Rating" }
+    - { platform_id: "PLAT-05", platform_code: "Phone", channel_group: "Contact Centre", vendor: "AWS Connect / Zendesk", survey_mechanism: "IVR Post-Call Survey" }
+    - { platform_id: "PLAT-06", platform_code: "Social Media", channel_group: "Social Care", vendor: "Sprinklr / Zendesk", survey_mechanism: "DM Resolution Survey" }
+
+  dim_product_category:
+    - { category_id: 100, category_name: "Vitamins & Supplements", department: "Health & Wellness", parent_id: null, margin_tier: "High" }
+    - { category_id: 101, category_name: "Multivitamins & Minerals", department: "Health & Wellness", parent_id: 100, margin_tier: "High" }
+    - { category_id: 102, category_name: "Herbal & Botanical Extracts", department: "Health & Wellness", parent_id: 100, margin_tier: "High" }
+    - { category_id: 200, category_name: "Sports Nutrition", department: "Active Performance", parent_id: null, margin_tier: "Medium" }
+    - { category_id: 201, category_name: "Whey & Plant Protein", department: "Active Performance", parent_id: 200, margin_tier: "Medium" }
+    - { category_id: 202, category_name: "Creatine & Pre-Workout", department: "Active Performance", parent_id: 200, margin_tier: "High" }
+    - { category_id: 300, category_name: "Natural Beauty", department: "Clean Beauty & Aromatherapy", parent_id: null, margin_tier: "High" }
+    - { category_id: 301, category_name: "Clean Skincare & Serums", department: "Clean Beauty & Aromatherapy", parent_id: 300, margin_tier: "High" }
+    - { category_id: 302, category_name: "Essential Oils & Aromatherapy", department: "Clean Beauty & Aromatherapy", parent_id: 300, margin_tier: "High" }
+    - { category_id: 400, category_name: "Food & Drink", department: "Specialty Nutrition", parent_id: null, margin_tier: "Standard" }
+    - { category_id: 401, category_name: "Functional Teas & Kombucha", department: "Specialty Nutrition", parent_id: 400, margin_tier: "Medium" }
+    - { category_id: 402, category_name: "Wholefoods & Healthy Snacks", department: "Specialty Nutrition", parent_id: 400, margin_tier: "Standard" }
+    - { category_id: 500, category_name: "Gut Health & Probiotics", department: "Digestive Health", parent_id: null, margin_tier: "High" }
+    - { category_id: 501, category_name: "Live Friendly Bacteria", department: "Digestive Health", parent_id: 500, margin_tier: "High" }
+    - { category_id: 600, category_name: "Weight Management", department: "Metabolic Wellness", parent_id: null, margin_tier: "Medium" }
+    - { category_id: 601, category_name: "Meal Replacements & Fibres", department: "Metabolic Wellness", parent_id: 600, margin_tier: "Medium" }

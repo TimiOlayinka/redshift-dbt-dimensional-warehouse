@@ -1,4 +1,4 @@
-# Enterprise AWS Lakehouse & Amazon Redshift Kimball Data Warehouse (`HnB CX & E-Commerce`)
+# Enterprise dbt & Amazon Redshift Dimensional Warehouse (`redshift-dbt-dimensional-warehouse`)
 
 [![dbt Core 1.8+](https://img.shields.io/badge/dbt_Core-1.8%2B-FF694B?logo=dbt&logoColor=white)](https://docs.getdbt.com/)
 [![Amazon Redshift Serverless](https://img.shields.io/badge/Amazon_Redshift-Serverless-8C4FFF?logo=amazon-redshift&logoColor=white)](https://aws.amazon.com/redshift/redshift-serverless/)
@@ -6,7 +6,7 @@
 [![Terraform 1.7+](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-An enterprise-grade **AWS Modern Data Stack** reference architecture built for a multi-brand Health & Wellness retail group (**Holland & Barrett**, **H&B International**, **Pureis**, **Vitabiotics Partner**, **Miaroma**).
+An enterprise-grade **AWS Modern Data Stack** reference architecture built for a multi-brand Health & Wellness retail group (**Vitality Retail**, **Vitality International**, **PureBotanics**, **NutriCore Partner**, **AromaVita**).
 
 This platform unifies **Omnichannel Customer Experience (CX)** telemetry—Service Management Group (SMG) Post-Ship & VisitView Net Promoter Score (NPS) surveys and Zendesk Customer Care support tickets—with **E-Commerce Checkout Basket & Payment** transactions inside **Amazon Redshift Serverless**, orchestrated by **Apache Airflow** and transformed via **dbt Core**.
 
@@ -33,7 +33,7 @@ flowchart LR
     end
 
     subgraph LAKE["2. S3 Raw Data Lake"]
-        S3[("Amazon S3\ns3://hnb-data-lake/\nHive-Partitioned JSONL.GZ\nAES-256 + Glacier Lifecycle")]
+        S3[("Amazon S3\ns3://vitality-data-lake/\nHive-Partitioned JSONL.GZ\nAES-256 + Glacier Lifecycle")]
     end
 
     subgraph ORCHESTRATE["3. Orchestration (Apache Airflow)"]
@@ -144,8 +144,8 @@ flowchart TB
 All 5 AWS Lambda generators serialize records to newline-delimited JSON (`application/x-ndjson`), compress payloads with `GZIP` (level 6), and write to Hive-partitioned S3 keys using exponential backoff:
 
 ```text
-s3://hnb-data-lake/
-├── hnb/
+s3://vitality-data-lake/
+├── vitality/
 │   ├── cx/
 │   │   ├── nps_postship/history/ingest_date=YYYY-MM-DD/nps_postship.jsonl.gz
 │   │   ├── nps_visitview/history/ingest_date=YYYY-MM-DD/nps_visitview.jsonl.gz
@@ -160,7 +160,7 @@ s3://hnb-data-lake/
 ## Repository Structure
 
 ```text
-aws-data-warehouse/
+redshift-dbt-dimensional-warehouse/
 ├── .github/workflows/
 │   ├── airflow_demo.yml                # Airflow DagBag integrity + SQLFluff + dbt Slim CI
 │   ├── deploy_lambdas.yml              # Ruff lint, Lambda smoke tests, ZIP build, Terraform validate & OIDC deploy
@@ -173,10 +173,10 @@ aws-data-warehouse/
 │   ├── 03_transform_odl.py             # dbt SCD2 snapshots + Kimball ODL dimensions/facts + tests
 │   ├── 04_transform_adl.py             # dbt ADL executive & attribution marts + docs generate
 │   └── 02_transform_cx.py              # Unified master dbt orchestration DAG (RDL -> ODL -> ADL)
-└── hnb/
+└── vitality/
     ├── dbt/
     │   ├── .sqlfluff                   # Redshift SQL dialect linting rules
-    │   ├── dbt_project.yml             # Layer configs, tags, persist_docs, and H&B domain vars
+    │   ├── dbt_project.yml             # Layer configs, tags, persist_docs, and Vitality domain vars
     │   ├── packages.yml                # dbt_utils, dbt_expectations, codegen, audit_helper
     │   ├── profiles.yml                # Redshift Serverless dev, Slim CI (ci_pr_<N>), and prod targets
     │   ├── macros/
@@ -218,20 +218,20 @@ aws-data-warehouse/
 
 ```bash
 # Run local dry-run smoke tests (generates & GZIP-compresses synthetic batches without AWS credentials)
-python hnb/lambda/cx_customer_support/main.py
-python hnb/lambda/cx_nps_postship/main.py
-python hnb/lambda/cx_nps_visitview/main.py
-python hnb/lambda/ecommerce_basket_items/main.py
-python hnb/lambda/ecommerce_basket_payments/main.py
+python vitality/lambda/cx_customer_support/main.py
+python vitality/lambda/cx_nps_postship/main.py
+python vitality/lambda/cx_nps_visitview/main.py
+python vitality/lambda/ecommerce_basket_items/main.py
+python vitality/lambda/ecommerce_basket_payments/main.py
 
-# Package deterministic deployment ZIPs into hnb/dist/
-python hnb/scripts/build_zips.py
+# Package deterministic deployment ZIPs into vitality/dist/
+python vitality/scripts/build_zips.py
 ```
 
 ### 2. Provision Cloud Infrastructure with Terraform
 
 ```bash
-cd hnb/terraform
+cd vitality/terraform
 terraform init
 terraform validate
 terraform plan -var="environment=prod" -var="redshift_admin_password=${REDSHIFT_PASSWORD}"
@@ -240,7 +240,7 @@ terraform plan -var="environment=prod" -var="redshift_admin_password=${REDSHIFT_
 ### 3. Run dbt Core Transformations, Unit Tests & Slim CI
 
 ```bash
-cd hnb/dbt
+cd vitality/dbt
 dbt deps --profiles-dir .
 
 # Verify source freshness SLAs (12h warn / 24h error)

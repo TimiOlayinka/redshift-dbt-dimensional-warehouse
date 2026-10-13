@@ -11,7 +11,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import LambdaInvokeF
 from airflow.utils.task_group import TaskGroup
 
 default_args = {
-    "owner": "hnb-analytics-engineering",
+    "owner": "vitality-analytics-engineering",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,

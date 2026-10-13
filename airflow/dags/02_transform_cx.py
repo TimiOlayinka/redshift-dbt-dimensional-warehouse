@@ -8,10 +8,10 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
 
-DBT_PROJECT_DIR = "/opt/airflow/dbt/hnb"
+DBT_PROJECT_DIR = "/opt/airflow/dbt/vitality"
 
 default_args = {
-    "owner": "hnb-analytics-engineering",
+    "owner": "vitality-analytics-engineering",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
@@ -23,7 +23,7 @@ default_args = {
 with DAG(
     dag_id="02_transform_cx",
     default_args=default_args,
-    description="End-to-end dbt Core transformation pipeline for H&B CX & E-Commerce (RDL -> ODL -> ADL)",
+    description="End-to-end dbt Core transformation pipeline for Vitality CX & E-Commerce (RDL -> ODL -> ADL)",
     schedule="0 2 * * *",
     start_date=datetime(2026, 1, 1),
     catchup=False,

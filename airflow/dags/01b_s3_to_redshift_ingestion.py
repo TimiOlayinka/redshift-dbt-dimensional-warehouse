@@ -10,7 +10,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.task_group import TaskGroup
 
 default_args = {
-    "owner": "hnb-analytics-engineering",
+    "owner": "vitality-analytics-engineering",
     "depends_on_past": False,
     "email_on_failure": False,
     "email_on_retry": False,
@@ -38,8 +38,8 @@ with DAG(
     tags=["ingestion", "redshift", "s3", "rdl"],
 ) as dag:
 
-    s3_bucket = "{{ var.value.get('hnb_s3_bucket', 'hnb-data-lake') }}"
-    redshift_iam_role = "{{ var.value.get('redshift_copy_iam_role', 'arn:aws:iam::123456789012:role/hnb-cx-dwh-prod-redshift-s3-role') }}"
+    s3_bucket = "{{ var.value.get('vitality_s3_bucket', 'vitality-data-lake') }}"
+    redshift_iam_role = "{{ var.value.get('redshift_copy_iam_role', 'arn:aws:iam::123456789012:role/vitality-cx-dwh-prod-redshift-s3-role') }}"
     ingest_date = "{{ ds }}"
 
     with TaskGroup(group_id="copy_s3_to_redshift_rdl") as copy_group:
@@ -49,7 +49,7 @@ with DAG(
             schema = cfg["schema"]
             table = cfg["table"]
 
-            s3_key = f"hnb/{domain}/{dataset}/history/ingest_date={ingest_date}/{dataset}.jsonl.gz"
+            s3_key = f"vitality/{domain}/{dataset}/history/ingest_date={ingest_date}/{dataset}.jsonl.gz"
 
             copy_sql = f"""
                 CREATE SCHEMA IF NOT EXISTS {schema};
