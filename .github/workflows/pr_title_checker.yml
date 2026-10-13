@@ -1,0 +1,42 @@
+name: PR Semantic Title & Governance Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate-pr-title:
+    name: Enforce Conventional Commit PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Semantic PR Title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            ci
+            chore
+          scopes: |
+            dbt
+            redshift
+            airflow
+            lambda
+            terraform
+            rdl
+            odl
+            adl
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            should start with a lowercase character (e.g., "feat(dbt): add incremental merge to fact_survey").

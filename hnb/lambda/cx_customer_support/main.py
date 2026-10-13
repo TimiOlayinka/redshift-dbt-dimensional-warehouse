@@ -1,48 +1,85 @@
-import json
-import boto3
-import uuid
+"""AWS Lambda generator for simulated Zendesk Customer Care support tickets."""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
 import os
-import gzip
-from datetime import datetime, timedelta
+from pathlib import Path
 import random
+import sys
+from typing import Any
+import uuid
 
-s3 = boto3.client('s3')
+# Allow local execution outside packaged zip by adding parent directory to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-def generate_support_tickets(num_records=100):
-    records = []
+from shared.config.core import HNB_BRAND_WEIGHTS, HNB_BRANDS
+from shared.config.marketing import (
+    SUPPORT_CHANNEL_WEIGHTS,
+    SUPPORT_CHANNELS,
+    SUPPORT_CONTACT_REASONS,
+    SUPPORT_TICKET_STATUS_WEIGHTS,
+    SUPPORT_TICKET_STATUSES,
+)
+from shared.handler_logic import execute_ingestion_pipeline
+
+
+def generate_support_tickets(num_records: int = 250) -> list[dict[str, Any]]:
+    """Generate realistic omnichannel customer support ticket payloads for H&B Group brands."""
+    records: list[dict[str, Any]] = []
+    now_utc = datetime.now(timezone.utc)
+
     for _ in range(num_records):
-        status = random.choice(["Closed", "Resolved", "Open", "Pending"])
-        created_at = datetime.utcnow() - timedelta(days=random.randint(0, 10))
-        resolved_at = created_at + timedelta(hours=random.randint(1, 48)) if status in ["Closed", "Resolved"] else None
-        
-        record = {
-            "ticket_id": str(uuid.uuid4()),
-            "customer_id": f"CUST-{random.randint(10000, 99999)}",
-            "created_at": created_at.isoformat(),
-            "resolved_at": resolved_at.isoformat() if resolved_at else None,
-            "status": status,
-            "channel": random.choice(["Email", "Chat", "Phone", "Social Media"]),
-            "reason": random.choice(["Where is my order?", "Returns", "Defective Item", "Account Issue"]),
-            "csat_score": random.randint(1, 5) if status in ["Closed", "Resolved"] and random.random() > 0.3 else None,
-            "brand": random.choice(["HNB", "PrettyLittleThing", "NastyGal", "Karen Millen", "Coast", "Debenhams"])
-        }
-        records.append(record)
+        status = random.choices(SUPPORT_TICKET_STATUSES, weights=SUPPORT_TICKET_STATUS_WEIGHTS, k=1)[0]
+        created_at = now_utc - timedelta(days=random.randint(0, 7), hours=random.randint(0, 23))
+        is_completed = status in ("Closed", "Resolved")
+
+        # Simulate realistic resolution distribution (most within 1-18h, tail up to 48h)
+        resolution_hours = (
+            random.choices([random.randint(1, 4), random.randint(5, 20), random.randint(25, 48)], weights=[0.45, 0.40, 0.15], k=1)[0]
+            if is_completed
+            else None
+        )
+        resolved_at = created_at + timedelta(hours=resolution_hours) if resolution_hours is not None else None
+
+        # Higher CSAT when resolved within First-Contact Resolution (<= 4 hours)
+        csat_score: int | None = None
+        if is_completed and random.random() > 0.25:
+            if resolution_hours and resolution_hours <= 4:
+                csat_score = random.choices([5, 4, 3], weights=[0.70, 0.22, 0.08], k=1)[0]
+            elif resolution_hours and resolution_hours <= 24:
+                csat_score = random.choices([5, 4, 3, 2], weights=[0.40, 0.35, 0.15, 0.10], k=1)[0]
+            else:
+                csat_score = random.choices([4, 3, 2, 1], weights=[0.10, 0.25, 0.35, 0.30], k=1)[0]
+
+        records.append(
+            {
+                "ticket_id": str(uuid.uuid4()),
+                "customer_id": f"CUST-{random.randint(10000, 99999)}",
+                "created_at": created_at.isoformat(),
+                "resolved_at": resolved_at.isoformat() if resolved_at else None,
+                "status": status,
+                "channel": random.choices(SUPPORT_CHANNELS, weights=SUPPORT_CHANNEL_WEIGHTS, k=1)[0],
+                "reason": random.choice(SUPPORT_CONTACT_REASONS),
+                "csat_score": csat_score,
+                "brand": random.choices(HNB_BRANDS, weights=HNB_BRAND_WEIGHTS, k=1)[0],
+            }
+        )
     return records
 
-def lambda_handler(event, context):
-    bucket = os.environ.get('S3_BUCKET', 'hnb-data-lake')
-    prefix = 'hnb/cx/customer_support/history/ingest_date=' + datetime.utcnow().strftime('%Y-%m-%d')
-    
-    records = generate_support_tickets(random.randint(200, 800))
-    jsonl = '\n'.join([json.dumps(r) for r in records]).encode('utf-8')
-    compressed = gzip.compress(jsonl)
-    
-    key = f"{prefix}/customer_support.jsonl.gz"
-    
-    # s3.put_object(Bucket=bucket, Key=key, Body=compressed)
-    
-    print(f"Generated {len(records)} support ticket records for {key}")
-    return {
-        "statusCode": 200,
-        "body": f"Successfully processed {len(records)} records."
-    }
+
+def lambda_handler(event: dict[str, Any] | None = None, context: Any = None) -> dict[str, Any]:
+    """AWS Lambda entrypoint for `cx_customer_support`."""
+    return execute_ingestion_pipeline(
+        domain="cx",
+        dataset="customer_support",
+        generator_fn=generate_support_tickets,
+        min_records=250,
+        max_records=800,
+        event=event,
+    )
+
+
+if __name__ == "__main__":
+    os.environ.setdefault("DRY_RUN", "true")
+    print(lambda_handler({"num_records": 10}))

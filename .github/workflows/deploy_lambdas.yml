@@ -1,0 +1,120 @@
+name: Build, Test & Deploy AWS Lambda Ingestion Suite
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hnb/lambda/**"
+      - "hnb/scripts/build_zips.py"
+      - "hnb/terraform/**"
+      - ".github/workflows/deploy_lambdas.yml"
+  pull_request:
+    paths:
+      - "hnb/lambda/**"
+      - "hnb/scripts/build_zips.py"
+      - "hnb/terraform/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-verify-lambdas:
+    name: Lint, Dry-Run Smoke Test & Package ZIPs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3 ruff pytest
+
+      - name: Lint Lambda Python Code with Ruff
+        run: ruff check hnb/lambda hnb/scripts/build_zips.py
+
+      - name: Execute Dry-Run Smoke Tests for All 5 Generators
+        env:
+          DRY_RUN: "true"
+          S3_BUCKET: "hnb-data-lake-ci"
+        run: |
+          python hnb/lambda/cx_customer_support/main.py
+          python hnb/lambda/cx_nps_postship/main.py
+          python hnb/lambda/cx_nps_visitview/main.py
+          python hnb/lambda/ecommerce_basket_items/main.py
+          python hnb/lambda/ecommerce_basket_payments/main.py
+
+      - name: Package Deterministic Lambda Deployment ZIPs
+        run: python hnb/scripts/build_zips.py
+
+      - name: Upload Packaged Lambda Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hnb-lambda-deployment-zips
+          path: hnb/dist/*.zip
+          retention-days: 7
+
+  terraform-validate:
+    name: Terraform Format & Static Validation
+    runs-on: ubuntu-latest
+    needs: build-and-verify-lambdas
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Lambda Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hnb-lambda-deployment-zips
+          path: hnb/dist
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+
+      - name: Terraform Format Check
+        working-directory: hnb/terraform
+        run: terraform fmt -check
+
+      - name: Terraform Init (Backend Disabled) & Validate
+        working-directory: hnb/terraform
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+  deploy-to-aws:
+    name: Deploy Lambda Artifacts to AWS (Main Branch Only)
+    runs-on: ubuntu-latest
+    needs: [build-and-verify-lambdas, terraform-validate]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.AWS_DEPLOY_ENABLED == 'true'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Lambda Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hnb-lambda-deployment-zips
+          path: hnb/dist
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: Update Lambda Function Code
+        run: |
+          for fn in cx_customer_support cx_nps_postship cx_nps_visitview ecommerce_basket_items ecommerce_basket_payments; do
+            echo "Deploying ${fn}.zip to AWS Lambda..."
+            aws lambda update-function-code \
+              --function-name "${fn}" \
+              --zip-file "fileb://hnb/dist/${fn}.zip"
+          done

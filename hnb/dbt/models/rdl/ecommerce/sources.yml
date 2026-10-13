@@ -2,7 +2,77 @@ version: 2
 
 sources:
   - name: ecommerce_raw
+    description: >
+      Raw E-Commerce checkout basket items and payment transactions landed in Amazon S3 (`s3://hnb-data-lake/hnb/ecommerce/`)
+      and ingested into Amazon Redshift Serverless `rdl` schema via `COPY ... FORMAT AS JSON 'noshred'`.
     schema: rdl
+    loaded_at_field: _ingested_at
+    freshness:
+      warn_after: {count: 12, period: hour}
+      error_after: {count: 24, period: hour}
     tables:
       - name: rdl_basket_items
+        description: "Raw e-commerce shopping basket line items across H&B Group health & wellness brands."
+        columns:
+          - name: raw_data
+            description: "Unshredded JSON payload containing SKU, category, quantity, and unit pricing."
+            tests:
+              - not_null
+          - name: _ingested_at
+            description: "UTC timestamp when the S3 batch was loaded into Redshift RDL."
+
       - name: rdl_basket_payments
+        description: "Raw e-commerce checkout payment transactions and settlement statuses."
+        columns:
+          - name: raw_data
+            description: "Unshredded JSON payload containing basket payment method, amount, currency, and settlement status."
+            tests:
+              - not_null
+          - name: _ingested_at
+            description: "UTC timestamp when the S3 batch was loaded into Redshift RDL."
+
+models:
+  - name: stg_basket_items
+    description: "Cleaned, deduplicated, and price-validated staging view for e-commerce basket line items."
+    columns:
+      - name: basket_item_id
+        description: "Primary natural key (UUID) for each basket line item."
+        tests:
+          - unique
+          - not_null
+      - name: basket_id
+        description: "Checkout basket identifier linking items to payment transactions."
+        tests:
+          - not_null
+      - name: category_id
+        description: "Product category foreign key referencing `dim_product_category`."
+        tests:
+          - not_null
+      - name: brand
+        description: "Canonical H&B Group retail brand name."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Holland & Barrett', 'H&B International', 'Pureis', 'Vitabiotics Partner', 'Miaroma']
+
+  - name: stg_basket_payments
+    description: "Cleaned, deduplicated staging view for e-commerce checkout payment settlements."
+    columns:
+      - name: payment_id
+        description: "Primary natural key (UUID) for each payment attempt."
+        tests:
+          - unique
+          - not_null
+      - name: basket_id
+        description: "Checkout basket identifier."
+        tests:
+          - not_null
+      - name: customer_id
+        description: "Customer identifier executing the checkout transaction."
+        tests:
+          - not_null
+      - name: payment_status
+        description: "Standardized payment settlement status."
+        tests:
+          - accepted_values:
+              values: ['Success', 'Failed', 'Pending', 'Refunded']

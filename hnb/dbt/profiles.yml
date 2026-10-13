@@ -1,0 +1,48 @@
+hnb_redshift:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: redshift
+      method: database
+      host: "{{ env_var('REDSHIFT_HOST', 'hnb-wg-dev.123456789012.eu-west-2.redshift-serverless.amazonaws.com') }}"
+      user: "{{ env_var('REDSHIFT_USER', 'dbt_dev_user') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD', '') }}"
+      port: "{{ env_var('REDSHIFT_PORT', '5439') | as_number }}"
+      dbname: "{{ env_var('REDSHIFT_DBNAME', 'hnb_dwh_dev') }}"
+      schema: "{{ env_var('DBT_SCHEMA_PREFIX', 'dev_tolayinka') }}"
+      threads: 8
+      keepalives_idle: 240
+      connect_timeout: 15
+      ra3_node: true
+      retries: 2
+
+    ci:
+      type: redshift
+      method: database
+      host: "{{ env_var('REDSHIFT_HOST', 'hnb-wg-ci.123456789012.eu-west-2.redshift-serverless.amazonaws.com') }}"
+      user: "{{ env_var('REDSHIFT_USER', 'dbt_ci_runner') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD', '') }}"
+      port: "{{ env_var('REDSHIFT_PORT', '5439') | as_number }}"
+      dbname: "{{ env_var('REDSHIFT_DBNAME', 'hnb_dwh_prod') }}"
+      schema: "ci_pr_{{ env_var('GITHUB_PR_NUMBER', '0') }}"
+      threads: 8
+      keepalives_idle: 240
+      connect_timeout: 15
+      ra3_node: true
+      retries: 2
+
+    prod:
+      type: redshift
+      method: database
+      host: "{{ env_var('REDSHIFT_HOST', 'hnb-wg-prod.123456789012.eu-west-2.redshift-serverless.amazonaws.com') }}"
+      user: "{{ env_var('REDSHIFT_USER', 'dbt_prod_svc') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD', '') }}"
+      port: "{{ env_var('REDSHIFT_PORT', '5439') | as_number }}"
+      dbname: "{{ env_var('REDSHIFT_DBNAME', 'hnb_dwh_prod') }}"
+      schema: public
+      threads: 8
+      keepalives_idle: 240
+      connect_timeout: 15
+      ra3_node: true
+      retries: 3
+      search_path: "public, rdl, odl, adl"

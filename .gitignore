@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# dbt Core
+hnb/dbt/target/
+hnb/dbt/dbt_packages/
+hnb/dbt/logs/
+
+# Lambda packaged artifacts
+hnb/dist/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

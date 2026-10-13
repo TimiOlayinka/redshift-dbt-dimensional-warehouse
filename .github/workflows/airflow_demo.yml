@@ -1,0 +1,95 @@
+name: Airflow DAG Integrity & dbt Redshift Slim CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  airflow-dag-integrity:
+    name: Validate Airflow DAGs (Zero Import Errors)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Apache Airflow & AWS/SQL Providers
+        run: |
+          python -m pip install --upgrade pip
+          pip install "apache-airflow==2.9.1" \
+            "apache-airflow-providers-amazon>=8.20.0" \
+            "apache-airflow-providers-common-sql>=1.13.0"
+
+      - name: Verify Airflow DagBag Parses Cleanly
+        run: |
+          python - << 'EOF'
+          import sys
+          from airflow.models import DagBag
+
+          dag_bag = DagBag(dag_folder="airflow/dags", include_examples=False)
+          if dag_bag.import_errors:
+              print("Airflow DAG Import Errors Detected:")
+              for filepath, err in dag_bag.import_errors.items():
+                  print(f"  {filepath}: {err}")
+              sys.exit(1)
+
+          expected_dags = {
+              "01_cx_ingestion",
+              "01_ecommerce_ingestion",
+              "01b_s3_to_redshift_ingestion",
+              "02_transform_rdl",
+              "03_transform_odl",
+              "04_transform_adl",
+              "02_transform_cx",
+          }
+          loaded_dags = set(dag_bag.dags.keys())
+          missing = expected_dags - loaded_dags
+          assert not missing, f"Missing expected DAGs: {missing}"
+          print(f"Successfully validated {len(loaded_dags)} Airflow DAGs: {sorted(loaded_dags)}")
+          EOF
+
+  dbt-quality-and-slim-ci:
+    name: SQLFluff Linting & dbt Redshift Slim CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dbt-redshift & SQLFluff
+        run: |
+          python -m pip install --upgrade pip
+          pip install "dbt-core==1.8.4" "dbt-redshift==1.8.1" "sqlfluff==3.1.0" "sqlfluff-templater-dbt==3.1.0"
+
+      - name: Install dbt Packages & Validate Project Parsing
+        working-directory: hnb/dbt
+        run: |
+          dbt deps --profiles-dir .
+          dbt parse --profiles-dir . --target dev
+
+      - name: Run dbt Slim CI (state:modified+) on Redshift Serverless
+        if: vars.REDSHIFT_CI_ENABLED == 'true'
+        working-directory: hnb/dbt
+        env:
+          DBT_TARGET: ci
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number || '0' }}
+          REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
+          REDSHIFT_USER: ${{ secrets.REDSHIFT_USER }}
+          REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
+          REDSHIFT_DBNAME: ${{ secrets.REDSHIFT_DBNAME }}
+        run: |
+          if [ -f "./prod-manifest/manifest.json" ]; then
+            dbt build --select state:modified+ --defer --state ./prod-manifest --profiles-dir . --target ci
+          else
+            dbt build --profiles-dir . --target ci
+          fi
